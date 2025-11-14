@@ -1,3 +1,4 @@
+# tf stuff
 **/.terraform/*
 *.tfstate
 *.tfstate.*
@@ -16,3 +17,31 @@ terraform.rc
 .env
 .env.local
 *.terraform.lock.hcl
+
+# ansible stuff
+*.vault
+*.vault.yml
+*.vault.yaml
+vault-password.txt
+vault-pass.txt
+.vault_pass
+.vault_password
+**/group_vars/**/vault.yml
+**/group_vars/**/vault.yaml
+**/host_vars/**/vault.yml
+**/host_vars/**/vault.yaml
+ansible_vault_*
+*.secret
+*.secrets
+**/secrets/
+inventory/*
+!inventory/example
+!inventory/*.example
+hosts
+hosts.ini
+hosts.yml
+hosts.yaml
+*.retry
+*.key
+*.pem
+*.crt

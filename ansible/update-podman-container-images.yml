@@ -1,0 +1,42 @@
+# FIXME add a playbook for container recreation on succes
+---
+- name: Update Podman container images safely
+  hosts: podman
+  become: true
+  become_user: root
+
+  tasks:
+    - name: Get list of all running containers
+      ansible.builtin.command: podman ps --format json
+      register: running_containers
+      changed_when: false
+
+    - name: Parse container information
+      ansible.builtin.set_fact:
+        container_list: "{{ running_containers.stdout | from_json }}"
+
+    - name: Pull latest images for all containers
+      ansible.builtin.command: podman pull {{ item.Image }}
+      loop: "{{ container_list }}"
+      register: pull_results
+      changed_when: "'Downloaded newer image' in pull_results.stdout or 'Pulling' in pull_results.stdout"
+
+    - name: Display update summary
+      ansible.builtin.debug:
+        msg: |
+          Container: {{ item.item.Names[0] }}
+          Image: {{ item.item.Image }}
+          Status: {{ 'Updated' if item.changed else 'Already up-to-date' }}
+      loop: "{{ pull_results.results }}"
+      loop_control:
+        label: "{{ item.item.Names[0] }}"
+
+    - name: Instructions for applying updates
+      ansible.builtin.debug:
+        msg: |
+          Images have been updated. To apply the updates:
+          1. Stop each container: podman stop <container_name>
+          2. Remove each container: podman rm <container_name>
+          3. Recreate with the same command used originally (preserving volumes!)
+
+          Or use the deploy-podman-containers.yml playbook if you have one configured.
