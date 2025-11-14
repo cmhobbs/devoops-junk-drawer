@@ -1,0 +1,7 @@
+[podman]
+podman.example.lan ansible_user=bob
+
+[podman:vars]
+# Add any common variables for podman hosts here
+# ansible_user=your_username
+# ansible_become_password=your_password

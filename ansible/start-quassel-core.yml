@@ -1,0 +1,39 @@
+---
+- name: Start Quassel Core
+  hosts: podman
+  become: true
+  become_user: root
+
+  vars:
+    quassel_config_dir: /home/podman/quassel-core/
+    # override quassel_listen_ip in inventory or pass via -e
+    quassel_listen_ip: "{{ ansible_default_ipv4.address }}"
+
+  tasks:
+    - name: Check if quasselcore is already running
+      ansible.builtin.shell: pgrep -f quasselcore
+      register: quassel_running
+      changed_when: false
+      failed_when: false
+
+    - name: Display current status
+      ansible.builtin.debug:
+        msg: "Quassel Core is already running (PID: {{ quassel_running.stdout }})"
+      when: quassel_running.rc == 0
+
+    - name: Start Quassel Core
+      ansible.builtin.shell: |
+        nohup quasselcore -c {{ quassel_config_dir }} --listen {{ quassel_listen_ip }} > /var/log/quasselcore.log 2>&1 &
+      when: quassel_running.rc != 0
+
+    - name: Wait for Quassel Core to start
+      ansible.builtin.wait_for:
+        port: 4242
+        host: "{{ quassel_listen_ip }}"
+        timeout: 10
+      when: quassel_running.rc != 0
+
+    - name: Confirm Quassel Core is running
+      ansible.builtin.debug:
+        msg: "Quassel Core started successfully on {{ quassel_listen_ip }}:4242"
+      when: quassel_running.rc != 0

@@ -1,0 +1,62 @@
+# FIXME this is for first-run.  rebuild with existing containers in mind.
+---
+- name: Deploy Podman containers
+  hosts: podman
+  become: true
+  become_user: root
+
+  tasks:
+    - name: Ensure podman is installed
+      ansible.builtin.package:
+        name: podman
+        state: present
+
+    - name: Create kanboard data volume
+      containers.podman.podman_volume:
+        name: kanboard-data
+        state: present
+
+    - name: Create uptime-kuma data volume
+      containers.podman.podman_volume:
+        name: uptime-kuma-data
+        state: present
+
+    - name: Deploy kanboard container
+      containers.podman.podman_container:
+        name: kanboard
+        image: ghcr.io/kanboard/kanboard:latest
+        state: started
+        recreate: false
+        ports:
+          - "8282:80"
+        volumes:
+          - kanboard-data:/var/www/app/data
+
+    - name: Deploy uptime-kuma container
+      containers.podman.podman_container:
+        name: uptime-kuma
+        image: louislam/uptime-kuma:1
+        state: started
+        recreate: false
+        ports:
+          - "3001:3001"
+        volumes:
+          - uptime-kuma-data:/app/data
+
+    - name: Deploy redlib container
+      containers.podman.podman_container:
+        name: redlib
+        image: quay.io/redlib/redlib:latest
+        state: started
+        recreate: false
+        ports:
+          - "8080:8080"
+
+    - name: Display container status
+      ansible.builtin.command: podman ps
+      register: container_status
+      changed_when: false
+
+    - name: Show running containers
+      ansible.builtin.debug:
+        var: container_status.stdout_lines

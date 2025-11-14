@@ -1,2 +1,2 @@
-This is just a pile of stuff that I use when I'm tinkering with different
-unimportant projects or learning new things.
+Devoops utilities that I use while learning new things or managing low priority
+resources on my systems.

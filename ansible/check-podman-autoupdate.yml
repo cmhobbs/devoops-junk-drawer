@@ -1,0 +1,57 @@
+---
+- name: Check Podman container auto-update status
+  hosts: podman
+  become: true
+  become_user: root
+
+  tasks:
+    - name: Get list of all containers
+      ansible.builtin.command: podman ps -a --format json
+      register: containers_json
+      changed_when: false
+
+    - name: Parse container information
+      ansible.builtin.set_fact:
+        containers_info: "{{ containers_json.stdout | from_json }}"
+
+    - name: Display container auto-update status
+      ansible.builtin.debug:
+        msg: |
+          Container: {{ item.Names[0] | default(item.Id[:12]) }}
+          Status: {{ item.State }}
+          Auto-update: {{ item.Labels['io.containers.autoupdate'] | default('NOT SET') }}
+          Image: {{ item.Image }}
+          ---
+      loop: "{{ containers_info }}"
+      loop_control:
+        label: "{{ item.Names[0] | default(item.Id[:12]) }}"
+
+    - name: Count containers by auto-update status
+      ansible.builtin.set_fact:
+        autoupdate_enabled: "{{ containers_info | selectattr('Labels.io.containers.autoupdate', 'defined') | selectattr('Labels.io.containers.autoupdate', 'equalto', 'registry') | list | length }}"
+        autoupdate_local: "{{ containers_info | selectattr('Labels.io.containers.autoupdate', 'defined') | selectattr('Labels.io.containers.autoupdate', 'equalto', 'local') | list | length }}"
+        autoupdate_not_set: "{{ containers_info | rejectattr('Labels.io.containers.autoupdate', 'defined') | list | length }}"
+        total_containers: "{{ containers_info | length }}"
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg: |
+          ===== AUTO-UPDATE SUMMARY =====
+          Total containers: {{ total_containers }}
+          Auto-update enabled (registry): {{ autoupdate_enabled }}
+          Auto-update local only: {{ autoupdate_local }}
+          Auto-update NOT set: {{ autoupdate_not_set }}
+
+          {% if autoupdate_not_set | int > 0 %}
+          ⚠️  {{ autoupdate_not_set }} container(s) do not have auto-update enabled.
+          To enable auto-update, recreate containers with:
+          --label "io.containers.autoupdate=registry"
+          {% endif %}
+
+    - name: List containers without auto-update
+      ansible.builtin.debug:
+        msg: "{{ item.Names[0] | default(item.Id[:12]) }} - {{ item.Image }}"
+      loop: "{{ containers_info | rejectattr('Labels.io.containers.autoupdate', 'defined') }}"
+      loop_control:
+        label: "{{ item.Names[0] | default(item.Id[:12]) }}"
+      when: containers_info | rejectattr('Labels.io.containers.autoupdate', 'defined') | list | length > 0
